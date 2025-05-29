@@ -1,3 +1,5 @@
+//@ts-nocheck
+
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { taskActions } from "../store/task";

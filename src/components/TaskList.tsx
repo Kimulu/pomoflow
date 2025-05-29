@@ -1,59 +1,18 @@
 //@ts-nocheck
-import Cookies from "js-cookie";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { taskActions } from "../store/task";
-import { RootState } from "../store";
-import { v4 as uuidv4 } from "uuid";
 
 const TaskList = () => {
   const dispatch = useDispatch();
-  const tasks = useSelector((state: RootState) => state.tasks.list);
-
-  useEffect(() => {
-    let userId = Cookies.get("user_id");
-    if (!userId) {
-      userId = uuidv4();
-      Cookies.set("user_id", userId, { expires: 365 });
-      console.log("🆕 New user ID created:", userId);
-    } else {
-      console.log("🔐 Existing user ID:", userId);
-    }
-  }, []);
-
-  useEffect(() => {
-    const userId = Cookies.get("user_id");
-    if (userId) {
-      Cookies.set(`tasks_${userId}`, JSON.stringify(tasks), { expires: 7 });
-    }
-  }, [tasks]);
-
-  useEffect(() => {
-    const userId = Cookies.get("user_id");
-    if (userId) {
-      const savedTasks = Cookies.get(`tasks_${userId}`);
-      if (savedTasks) {
-        try {
-          const parsed = JSON.parse(savedTasks);
-          parsed.forEach((task: any) => {
-            dispatch(taskActions.addTask(task));
-          });
-        } catch (err) {
-          console.error("Failed to load tasks from cookie:", err);
-        }
-      }
-    }
-  }, []);
+  const tasks = useSelector((state) => state.tasks.list);
 
   const [title, setTitle] = useState("");
   const [pomodorosTarget, setPomodorosTarget] = useState(1);
 
   const addHandler = () => {
     if (!title.trim()) return;
-    const taskId = Math.random().toString();
-    dispatch(taskActions.addTask({ id: taskId, title, pomodorosTarget }));
-    dispatch(taskActions.setCurrentTask(taskId));
-
+    dispatch(taskActions.addTask({ title, pomodorosTarget }));
     setTitle("");
     setPomodorosTarget(1);
   };
