@@ -1,22 +1,19 @@
 //@ts-nocheck
 
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { taskActions } from "../store/task";
+import React, { useState, useEffect, useContext } from "react";
+import { useTasks } from "../context/TaskContext";
 
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<"pomodoro" | "short" | "long">("pomodoro");
   const [isRunning, setIsRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // default 25 min pomodoro
+  const [timeLeft, setTimeLeft] = useState(25 * 60); // default 25 min
+  const [pomodoroCount, setPomodoroCount] = useState(0);
 
-  const dispatch = useDispatch();
-  const currentTaskId = useSelector(
-    (state: RootState) => state.task?.currentTaskId ?? null
-  );
+  const { currentTaskId, incrementPomodoro } = useTasks();
 
   // Update timeLeft based on mode
   useEffect(() => {
-    if (mode === "pomodoro") setTimeLeft(1 * 60);
+    if (mode === "pomodoro") setTimeLeft(5);
     else if (mode === "short") setTimeLeft(5 * 60);
     else if (mode === "long") setTimeLeft(15 * 60);
     setIsRunning(false);
@@ -25,21 +22,46 @@ export default function PomodoroTimer() {
   // Timer countdown
   useEffect(() => {
     if (!isRunning) return;
-    if (timeLeft <= 0) {
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  // Timer finished effect
+  useEffect(() => {
+    if (timeLeft === 0 && isRunning) {
       setIsRunning(false);
 
-      // Only increment if we're in a Pomodoro session
-      if (mode === "pomodoro" && currentTaskId) {
-        dispatch(taskActions.incrementPomodoro(currentTaskId));
-      }
-      return;
-    }
-    const interval = setInterval(() => {
-      setTimeLeft((t) => t - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft]);
+      if (mode === "pomodoro") {
+        setPomodoroCount((prev) => {
+          const newCount = prev + 1;
 
+          // Update pomodoro count for current task
+          if (currentTaskId) {
+            incrementPomodoro(currentTaskId);
+          }
+
+          // Determine next mode
+          if (newCount % 4 === 0) {
+            setMode("long");
+            setTimeLeft(15 * 60); // 15 minutes
+          } else {
+            setMode("short");
+            setTimeLeft(5 * 60); // 5 minutes
+          }
+
+          return newCount;
+        });
+      } else {
+        // After any break, return to Pomodoro
+        setMode("pomodoro");
+        setTimeLeft(25 * 60);
+      }
+    }
+  }, [timeLeft, isRunning, mode, currentTaskId, incrementPomodoro]);
   // Format minutes and seconds
   const minutes = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const seconds = String(timeLeft % 60).padStart(2, "0");
@@ -47,7 +69,7 @@ export default function PomodoroTimer() {
   return (
     <div className="w-full max-w-md space-y-8 text-center mx-auto">
       {/* Tabs */}
-      <div className="tabs tabs-boxed justify-center">
+      <div className="tabs tabs-box justify-center">
         {(["pomodoro", "short", "long"] as const).map((key) => (
           <a
             role="tab"
@@ -103,6 +125,10 @@ export default function PomodoroTimer() {
         {mode === "pomodoro" && "Focus time"}
         {mode === "short" && "Take a short break"}
         {mode === "long" && "Take a long break"}
+      </p>
+
+      <p className="text-sm text-gray-500 text-center mb-4">
+        # {pomodoroCount}
       </p>
 
       {/* Start/Pause button */}
