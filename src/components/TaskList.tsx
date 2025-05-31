@@ -5,7 +5,7 @@ import { taskActions } from "../store/task";
 
 const TaskList = () => {
   const dispatch = useDispatch();
-  const tasks = useSelector((state) => state.tasks.list);
+  const tasks = useSelector((state: RootState) => state.task?.tasks || []);
 
   const [title, setTitle] = useState("");
   const [pomodorosTarget, setPomodorosTarget] = useState(1);
@@ -53,13 +53,14 @@ const TaskList = () => {
         </button>
       </div>
 
-      <ul className="space-y-3">
+      <ul className="space-y-3" suppressHydrationWarning>
         {tasks.map((task) => (
           <li
             key={task.id}
             className="flex items-center justify-between bg-base-200 p-4 rounded-box shadow"
+            suppressHydrationWarning
           >
-            <div>
+            <div suppressHydrationWarning>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"

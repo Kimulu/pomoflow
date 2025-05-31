@@ -10,7 +10,9 @@ export default function PomodoroTimer() {
   const [timeLeft, setTimeLeft] = useState(25 * 60); // default 25 min pomodoro
 
   const dispatch = useDispatch();
-  const currentTaskId = useSelector((state: any) => state.tasks.currentTaskId);
+  const currentTaskId = useSelector(
+    (state: RootState) => state.task?.currentTaskId ?? null
+  );
 
   // Update timeLeft based on mode
   useEffect(() => {
