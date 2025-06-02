@@ -1,17 +1,20 @@
 import { JSX } from "react";
 import React from "react";
 
-// Reusable nav button with icon + label + tooltip
-export default function NavButton({
-  icon,
-  label,
-}: {
+interface NavButtonProps {
   icon: JSX.Element;
   label: string;
-}) {
+  onClick?: () => void; // Add optional onClick handler
+}
+
+// Reusable nav button with icon + label + tooltip
+export default function NavButton({ icon, label, onClick }: NavButtonProps) {
   return (
     <div className="relative group">
-      <button className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md text-gray-700 hover:bg-blue-100 hover:text-blue-600 transition duration-200">
+      <button
+        onClick={onClick}
+        className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-md text-gray-700 hover:bg-blue-100 hover:text-blue-600 transition duration-200"
+      >
         {icon}
         <span className="hidden lg:inline">{label}</span>
       </button>

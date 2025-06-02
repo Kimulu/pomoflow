@@ -7,14 +7,17 @@ export interface Task {
   pomodoros: number;
   createdAt: string;
   pomodorosCompleted: number;
+  completed: boolean; // ✅ NEW FIELD
 }
 
 interface TaskContextType {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-  addTask: (text: string) => void;
+  addTask: (text: string, pomodoros: number) => void; // changed
   deleteTask: (id: string) => void;
   incrementPomodoro: (id: string) => void;
+  setPomodoros: (id: string, count: number) => void; // ✅ NEW METHOD
+  toggleTaskCompleted: (id: string) => void; // renamed
   currentTaskId: string | null;
   setCurrentTaskId: (id: string | null) => void;
 }
@@ -33,13 +36,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [tasks, currentTaskId]);
 
-  const addTask = (text: string) => {
+  const addTask = (text: string, pomodoros: number) => {
     const newTask: Task = {
       id: uuidv4(),
       text,
-      pomodoros: 0,
+      pomodoros,
       pomodorosCompleted: 0,
       createdAt: new Date().toISOString(),
+      completed: false,
     };
     setTasks((prev) => [...prev, newTask]);
   };
@@ -53,16 +57,37 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
   const incrementPomodoro = (id: string) => {
     setTasks((prev) => {
-      const updated = prev.map((task) =>
-        task.id === id
-          ? { ...task, pomodorosCompleted: task.pomodorosCompleted + 0.5 }
-          : task
-      );
+      const updated = prev.map((task) => {
+        if (task.id === id) {
+          const newCount = task.pomodorosCompleted + 1;
+          const isDone = task.pomodoros > 0 && newCount >= task.pomodoros;
+          return {
+            ...task,
+            pomodorosCompleted: newCount,
+            completed: isDone || task.completed,
+          };
+        }
+        return task;
+      });
       localStorage.setItem("tasks", JSON.stringify(updated));
-      console.log(currentTaskId);
-      console.log("incremented succesfully");
       return updated;
     });
+  };
+
+  const setPomodoros = (id: string, count: number) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, pomodoros: count } : task
+      )
+    );
+  };
+
+  const toggleTaskCompleted = (id: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
   };
 
   useEffect(() => {
@@ -82,6 +107,8 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         addTask,
         deleteTask,
         incrementPomodoro,
+        setPomodoros,
+        toggleTaskCompleted,
         currentTaskId,
         setCurrentTaskId,
       }}
@@ -91,7 +118,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// Custom hook for cleaner usage
 export const useTasks = () => {
   const context = useContext(TaskContext);
   if (!context) throw new Error("useTasks must be used within a TaskProvider");

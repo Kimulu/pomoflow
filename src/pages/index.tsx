@@ -14,8 +14,7 @@ export default function Home() {
 
           {/* Tasks Placeholder */}
           <section className="w-full lg:w-1/2">
-            <h3 className="text-xl font-semibold mb-4">Tasks</h3>
-            <div className="bg-base-200 rounded-box p-6 text-base-content">
+            <div className="bg-base-200 rounded-box p-2 text-base-content">
               <TaskList />
             </div>
           </section>

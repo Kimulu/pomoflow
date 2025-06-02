@@ -1,73 +1,123 @@
 //@ts-nocheck
-
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTasks } from "../context/TaskContext";
+
+const STORAGE_KEY = "pomodoroData";
 
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<"pomodoro" | "short" | "long">("pomodoro");
   const [isRunning, setIsRunning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // default 25 min
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [pomodoroCount, setPomodoroCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { currentTaskId, incrementPomodoro } = useTasks();
 
-  // Update timeLeft based on mode
+  // ✅ Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // ✅ Helper function to show a notification
+  const showNotification = (title: string, body?: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, {
+        body: body || "",
+        icon: "/favicon.ico", // Optional: Add your own icon
+      });
+    }
+  };
+
+  // Load saved data
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const { count, lastUpdated } = JSON.parse(saved);
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      if (now - lastUpdated < twentyFourHours) {
+        setPomodoroCount(count);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  }, []);
+
+  const updateLocalStorage = (count: number) => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ count, lastUpdated: Date.now() })
+    );
+  };
+
   useEffect(() => {
     if (mode === "pomodoro") setTimeLeft(5);
-    else if (mode === "short") setTimeLeft(5 * 60);
-    else if (mode === "long") setTimeLeft(15 * 60);
+    else if (mode === "short") setTimeLeft(5);
+    else if (mode === "long") setTimeLeft(5);
     setIsRunning(false);
   }, [mode]);
 
-  // Timer countdown
   useEffect(() => {
     if (!isRunning) return;
-
     const interval = setInterval(() => {
       setTimeLeft((prev) => Math.max(prev - 1, 0));
     }, 1000);
-
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  // Timer finished effect
   useEffect(() => {
     if (timeLeft === 0 && isRunning) {
       setIsRunning(false);
+      // Play the audio
+      if (audioRef.current) {
+        audioRef.current.play().catch((err) => {
+          console.error("Audio play error:", err);
+        });
+      }
 
       if (mode === "pomodoro") {
         setPomodoroCount((prev) => {
           const newCount = prev + 1;
+          updateLocalStorage(newCount);
 
-          // Update pomodoro count for current task
           if (currentTaskId) {
             incrementPomodoro(currentTaskId);
           }
 
-          // Determine next mode
           if (newCount % 4 === 0) {
             setMode("long");
-            setTimeLeft(15 * 60); // 15 minutes
+            setTimeLeft(15 * 60);
+            showNotification("Long Break", "Time for a well-earned rest!");
           } else {
             setMode("short");
-            setTimeLeft(5 * 60); // 5 minutes
+            setTimeLeft(5 * 60);
+            showNotification("Short Break", "Take a short break.");
           }
 
           return newCount;
         });
       } else {
-        // After any break, return to Pomodoro
         setMode("pomodoro");
         setTimeLeft(25 * 60);
+        showNotification("Pomodoro", "Back to focus time!");
       }
     }
   }, [timeLeft, isRunning, mode, currentTaskId, incrementPomodoro]);
-  // Format minutes and seconds
+
   const minutes = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const seconds = String(timeLeft % 60).padStart(2, "0");
 
   return (
     <div className="w-full max-w-md space-y-8 text-center mx-auto">
+      {/* Audio for alarm */}
+      <audio
+        ref={audioRef}
+        src="/kids-cartoon-close-bells.wav"
+        preload="auto"
+      />
+
       {/* Tabs */}
       <div className="tabs tabs-box justify-center">
         {(["pomodoro", "short", "long"] as const).map((key) => (
@@ -77,12 +127,9 @@ export default function PomodoroTimer() {
             className={`tab ${mode === key ? "tab-active" : ""}`}
             onClick={() => setMode(key)}
           >
-            {/* Short label on small screens */}
             {key === "pomodoro" && <span className="sm:hidden">Pomo</span>}
             {key === "short" && <span className="sm:hidden">Short</span>}
             {key === "long" && <span className="sm:hidden">Long</span>}
-
-            {/* Full label on sm+ screens */}
             <span className="hidden sm:inline">
               {key === "pomodoro" && "Pomodoro"}
               {key === "short" && "Short Break"}
@@ -98,7 +145,6 @@ export default function PomodoroTimer() {
           <span className="countdown font-mono text-7xl">
             <span
               style={{ "--value": parseInt(minutes) } as React.CSSProperties}
-              aria-live="polite"
               aria-label={`${minutes} minutes`}
             >
               {minutes}
@@ -106,12 +152,10 @@ export default function PomodoroTimer() {
           </span>
           min
         </div>
-
         <div className="flex flex-col p-2 text-black-content min-w-[90px]">
           <span className="countdown font-mono text-7xl">
             <span
               style={{ "--value": parseInt(seconds) } as React.CSSProperties}
-              aria-live="polite"
               aria-label={`${seconds} seconds`}
             >
               {seconds}
@@ -131,7 +175,6 @@ export default function PomodoroTimer() {
         # {pomodoroCount}
       </p>
 
-      {/* Start/Pause button */}
       <button
         className="btn btn-outline btn-wide px-10 text-lg"
         onClick={() => setIsRunning(!isRunning)}
