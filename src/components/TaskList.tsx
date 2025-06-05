@@ -60,13 +60,13 @@ export default function TaskList() {
             task.completed || task.pomodorosCompleted >= task.pomodoros;
           return (
             <li
-              key={task.id}
+              key={task._id}
               className={`flex justify-between items-center p-3 rounded border cursor-pointer ${
-                currentTaskId === task.id
+                currentTaskId === task._id
                   ? "bg-primary text-white"
                   : "bg-base-200"
               }`}
-              onClick={() => setCurrentTaskId(task.id)}
+              onClick={() => setCurrentTaskId(task._id)}
             >
               <div className="flex items-center gap-2">
                 <input
@@ -74,7 +74,7 @@ export default function TaskList() {
                   className="checkbox checkbox-sm"
                   checked={isCompleted}
                   onClick={(e) => e.stopPropagation()}
-                  onChange={() => toggleTaskCompleted(task.id)}
+                  onChange={() => toggleTaskCompleted(task._id)}
                 />
                 <div className="flex flex-col">
                   <p
@@ -96,13 +96,13 @@ export default function TaskList() {
               >
                 <button
                   className="btn btn-xs btn-accent"
-                  onClick={() => incrementPomodoro(task.id)}
+                  onClick={() => incrementPomodoro(task._id)}
                 >
                   ➕
                 </button>
                 <button
                   className="btn btn-xs btn-error"
-                  onClick={() => deleteTask(task.id)}
+                  onClick={() => deleteTask(task._id)}
                 >
                   ✕
                 </button>
