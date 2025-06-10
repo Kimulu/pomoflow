@@ -52,6 +52,7 @@ exports.register = async (req, res) => {
       sameSite: "Lax",
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      domain: "localhost", // <--- ADD THIS LINE FOR DEVELOPMENT!
     });
 
     // 7. Return success response with user data (excluding password) - MODIFIED HERE
@@ -99,7 +100,31 @@ exports.login = async (req, res) => {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
+    // --- NEW LOGIC: Check and manage trial expiration ---
+    // Only proceed if the user is currently on a 'trial' plan AND has a trialStart date
+    if (user.plan === "trial" && user.trialStart) {
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000; // Define 7 days in milliseconds
+      // Calculate the exact timestamp when the trial ends
+      const trialEndTime = new Date(user.trialStart).getTime() + sevenDaysInMs;
+
+      // Check if the current time is past the trial end time
+      if (Date.now() > trialEndTime) {
+        // Trial has expired, downgrade user to 'free' plan
+        user.plan = "free";
+        user.trialStart = null; // Optionally clear trialStart, or keep it for history
+
+        // Save the updated user object to the database
+        await user.save();
+
+        console.log(
+          `User ${user.email} trial expired. Downgraded to 'free' plan.`
+        );
+      }
+    }
+    // --- END NEW LOGIC ---
+
     // 3. Generate JWT token
+    // The user object now reflects the potentially updated 'plan'
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
@@ -110,19 +135,21 @@ exports.login = async (req, res) => {
       sameSite: "Lax",
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      domain: "localhost", // <--- ADD THIS LINE FOR DEVELOPMENT!
     });
 
-    // 5. Return success response with user data (excluding password) - MODIFIED HERE
+    // 5. Return success response with user data (excluding password)
+    // Ensure the response sends the *current* (potentially updated) plan and trialStart
     res.json({
       _id: user._id,
       email: user.email,
-      username: user.username, // Include username
-      plan: user.plan, // Include plan
-      trialStart: user.trialStart, // Include trialStart
+      username: user.username,
+      plan: user.plan, // Send the updated plan
+      trialStart: user.trialStart, // Send the updated trialStart (might be null if trial expired)
       cycles: user.cycles,
       lastPomodoroDate: user.lastPomodoroDate,
-      tasks: user.tasks || [], // Include tasks, default to empty array
-      msg: "Logged in successfully", // Optional success message
+      tasks: user.tasks || [],
+      msg: "Logged in successfully",
     });
   } catch (err) {
     console.error("Login error:", err.message); // Log the actual error for debugging

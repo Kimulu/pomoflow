@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 
 export default function usePortal(id: string = "modal-root") {
   const [portalElement, setPortalElement] = useState<HTMLElement | null>(null);

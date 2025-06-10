@@ -1,8 +1,8 @@
-// @ts-nocheck
+// src/components/Navbar.tsx
 "use client";
 
-import { useState, useContext } from "react"; // Removed useEffect as it's not needed here
-import { AuthContext } from "../context/AuthContext"; // Ensure this path is correct
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import {
   Settings,
   BarChart2,
@@ -10,83 +10,85 @@ import {
   User,
   MoreVertical,
   LogOut,
-} from "lucide-react"; // LogOut icon is now part of the dropdown
+} from "lucide-react";
 import NavButton from "./Navbutton";
 import ReportsModal from "./Reports/ReportsModal";
 import Link from "next/link";
-import { useRouter } from "next/router"; // Import useRouter for client-side navigation
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [showReports, setShowReports] = useState(false);
-  const router = useRouter(); // Initialize router
 
-  // Destructure user, isLoading, and the logout function from AuthContext
-  const { user, isLoading, logout } = useContext(AuthContext); // Get logout from context
+  const { user, isLoading, logout } = useAuth();
 
-  // The handleLogout now simply calls the logout function from AuthContext
   const handleLogout = async () => {
     try {
-      await logout(); // Call the logout function from AuthContext
-      setOpen(false); // Close the dropdown after logout
-      // AuthContext's logout function handles setting user to null and isAuthenticated to false
-      // It also handles redirection if implemented in AuthContext.
+      await logout();
+      setOpen(false);
     } catch (err) {
       console.error("Navbar: Logout failed", err);
-      // AuthContext's logout function will likely handle the error display via its 'error' state
     }
   };
 
   return (
     <>
-      <nav className="bg-white shadow-md px-4 py-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center gap-4">
-          {/* Logo */}
+      <nav className="bg-white shadow-md px-2 py-3 sm:px-4 sm:py-4">
+        {" "}
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          {" "}
+          {/* No default gap here, rely on internal elements */}
+          {/* Logo - Adjusting text size and gap for even smaller screens */}
           <Link
             href="/"
-            className="text-2xl font-bold text-red-500 flex items-center gap-2"
+            // text-base (16px) on smallest, sm:text-lg (18px), md:text-2xl (24px)
+            // gap-0.5 (2px) on smallest, sm:gap-1 (4px), md:gap-2 (8px)
+            className="text-base sm:text-lg md:text-2xl font-bold text-red-500 flex items-center gap-0.5 sm:gap-1 md:gap-2"
           >
-            <span className="sm:hidden">🍅</span>
-            <span className="hidden sm:inline-flex items-center gap-2">
-              🍅 Pomoflow
-            </span>
+            🍅 Pomoflow {/* The full text is always present and scales */}
           </Link>
-
-          {/* Nav Items */}
-          <div className="flex items-center gap-4">
+          {/* Nav Items - Reduced gap between them */}
+          <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
+            {" "}
+            {/* Even smaller gap for icons on tiny screens */}
             <NavButton
-              icon={<BarChart2 className="w-5 h-5" />}
+              // Icons: w-3 h-3 (12px) on smallest, sm:w-4 sm:h-4 (16px), md:w-5 md:h-5 (20px)
+              icon={
+                <BarChart2 className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              }
               label="Report"
               onClick={() => setShowReports(true)}
+              hideLabelOnSmall={true}
             />
             <NavButton
-              icon={<Settings className="w-5 h-5" />}
+              icon={
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+              }
               label="Settings"
+              hideLabelOnSmall={true}
             />
-
-            {/* Conditional Rendering based on isLoading */}
             {isLoading ? (
-              // Show a subtle loading skeleton or spinner while authentication status is being determined
-              <div className="w-20 h-8 bg-gray-200 rounded-md animate-pulse"></div>
-            ) : user ? ( // User is logged in
+              // Loading skeleton also scales with new smaller dimensions
+              <div className="w-12 sm:w-16 h-6 sm:h-7 bg-gray-200 rounded-md animate-pulse"></div>
+            ) : user ? (
+              // User is logged in
               <div className="relative">
                 <button
                   onClick={() => setOpen(!open)}
-                  className="text-gray-600 hover:text-blue-500 transition p-1 rounded-md hover:bg-gray-100"
+                  // Padding reduced for very small screens
+                  className="text-gray-600 hover:text-blue-500 transition p-0.5 sm:p-1 rounded-md hover:bg-gray-100"
                 >
-                  <User className="w-5 h-5" />
+                  <User className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                 </button>
 
                 {open && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border z-50">
                     <div className="px-4 py-2 text-gray-800 text-sm border-b font-medium">
-                      {user.email} {/* Display user's email */}
+                      {user.email}
                       {user.username && (
                         <span className="block text-xs text-gray-500">
                           @{user.username}
                         </span>
-                      )}{" "}
-                      {/* Display username if available */}
+                      )}
                     </div>
                     <ul className="text-sm text-gray-700">
                       <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
@@ -96,7 +98,7 @@ export default function Navbar() {
                         Learn
                       </li>
                       <li
-                        onClick={handleLogout} // Call the simplified handleLogout
+                        onClick={handleLogout}
                         className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-red-500 flex items-center gap-2"
                       >
                         <LogOut className="w-4 h-4" /> Logout
@@ -110,17 +112,21 @@ export default function Navbar() {
               <>
                 <Link href="/login">
                   <NavButton
-                    icon={<LogIn className="w-5 h-5" />}
+                    icon={
+                      <LogIn className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
+                    }
                     label="Sign In"
+                    hideLabelOnSmall={true}
                   />
                 </Link>
 
                 <div className="relative">
                   <button
                     onClick={() => setOpen(!open)}
-                    className="text-gray-600 hover:text-blue-500 transition p-1 rounded-md hover:bg-gray-100"
+                    // Padding reduced for very small screens
+                    className="text-gray-600 hover:text-blue-500 transition p-0.5 sm:p-1 rounded-md hover:bg-gray-100"
                   >
-                    <MoreVertical className="w-5 h-5" />
+                    <MoreVertical className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
                   </button>
 
                   {open && (
@@ -135,7 +141,6 @@ export default function Navbar() {
                         <li className="px-4 py-2 hover:bg-gray-100 cursor-pointer">
                           <Link href="/register">Sign Up</Link>
                         </li>
-                        {/* Removed duplicate login link as it's already a NavButton */}
                       </ul>
                     </div>
                   )}

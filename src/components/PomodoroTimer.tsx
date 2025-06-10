@@ -1,13 +1,14 @@
-// @ts-nocheck
-import React, { useState, useEffect, useRef } from "react";
+// src/components/PomodoroTimer.tsx
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTasks } from "../context/TaskContext";
 import { useAuth } from "../context/AuthContext";
 
-const STORAGE_KEY = "pomodoroDailyCount"; // <-- RE-INTRODUCE STORAGE_KEY (changed name for clarity)
+const STORAGE_KEY = "pomodoroDailyCount";
 
 export default function PomodoroTimer() {
   const [mode, setMode] = useState<"pomodoro" | "short" | "long">("pomodoro");
   const [isRunning, setIsRunning] = useState(false);
+  // Set to 5 seconds for quick testing, remember to change back to 25 * 60 (1500) for production
   const [timeLeft, setTimeLeft] = useState(5);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -15,11 +16,12 @@ export default function PomodoroTimer() {
   const {
     user,
     isAuthenticated,
-    isLoading: authLoading,
+    isLoading: authLoading, // Renamed to authLoading for clarity
     incrementUserDailyCycles,
-  } = useAuth(); // <-- Added authLoading
+  } = useAuth();
 
-  const [overallPomodoroCount, setOverallPomodoroCount] = useState(0);
+  // guestOverallPomodoroCount is ONLY for guest users. Authenticated users will read from user.cycles.
+  const [guestOverallPomodoroCount, setGuestOverallPomodoroCount] = useState(0);
 
   // Helper to check if two dates are on the same calendar day
   const isSameDay = (d1: Date, d2: Date) => {
@@ -30,13 +32,23 @@ export default function PomodoroTimer() {
     );
   };
 
+  // Helper to show a notification
+  const showNotification = useCallback((title: string, body?: string) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, {
+        body: body || "",
+        icon: "/favicon.ico",
+      });
+    }
+  }, []); // Empty dependency array as it doesn't depend on component state/props
+
   // Helper to update local storage for guest users
-  const updateGuestLocalStorage = (count: number) => {
+  const updateGuestLocalStorage = useCallback((count: number) => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ count, lastUpdated: Date.now() })
     );
-  };
+  }, []); // Empty dependency array as it doesn't depend on component state/props
 
   // ✅ Request notification permission on mount
   useEffect(() => {
@@ -45,52 +57,32 @@ export default function PomodoroTimer() {
     }
   }, []);
 
-  // ✅ Helper function to show a notification
-  const showNotification = (title: string, body?: string) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, {
-        body: body || "",
-        icon: "/favicon.ico",
-      });
-    }
-  };
-
-  // --- Initialize overallPomodoroCount from AuthContext (if authenticated) or Local Storage (if guest) ---
+  // --- Initialize guestOverallPomodoroCount from Local Storage (if guest) ---
+  // For authenticated users, overall count comes directly from `user.cycles`
   useEffect(() => {
-    // Only run this effect once authentication status is known and user data is loaded
-    if (!authLoading) {
-      if (isAuthenticated && user?.cycles !== undefined) {
-        // If authenticated and user data is available, use database value
-        setOverallPomodoroCount(user.cycles);
-        // Clear any old local storage data that might conflict
-        localStorage.removeItem(STORAGE_KEY);
-      } else {
-        // If not authenticated (guest), try to load from local storage
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const { count, lastUpdated } = JSON.parse(saved);
-          const lastUpdatedDate = new Date(lastUpdated);
-          const now = new Date();
+    // Only proceed if auth status is known and it's a guest session
+    if (!authLoading && !isAuthenticated) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const { count, lastUpdated } = JSON.parse(saved);
+        const lastUpdatedDate = new Date(lastUpdated);
+        const now = new Date();
 
-          if (!isSameDay(lastUpdatedDate, now)) {
-            // It's a new day for the guest, reset local storage count
-            localStorage.removeItem(STORAGE_KEY);
-            setOverallPomodoroCount(0); // Reset for new day
-          } else {
-            // Same day, load the saved count
-            setOverallPomodoroCount(count);
-          }
+        if (!isSameDay(lastUpdatedDate, now)) {
+          localStorage.removeItem(STORAGE_KEY);
+          setGuestOverallPomodoroCount(0); // Reset for new day
         } else {
-          // No saved data for guest, start at 0
-          setOverallPomodoroCount(0);
+          setGuestOverallPomodoroCount(count);
         }
+      } else {
+        setGuestOverallPomodoroCount(0); // No saved data for guest, start at 0
       }
     }
-  }, [isAuthenticated, user?.cycles, authLoading]); // Depend on isAuthenticated and user.cycles
+  }, [isAuthenticated, authLoading]); // Depend on isAuthenticated and authLoading
 
   // Timer mode settings
   useEffect(() => {
-    if (mode === "pomodoro") setTimeLeft(5);
+    if (mode === "pomodoro") setTimeLeft(5); // Change to 25 * 60 for production
     else if (mode === "short") setTimeLeft(5 * 60);
     else if (mode === "long") setTimeLeft(15 * 60);
     setIsRunning(false); // Stop timer when mode changes
@@ -107,8 +99,12 @@ export default function PomodoroTimer() {
 
   // Logic when timer hits zero
   useEffect(() => {
+    // Only proceed if timer is running and time has hit zero
     if (timeLeft === 0 && isRunning) {
+      // Stop the timer
       setIsRunning(false);
+
+      // Play sound
       if (audioRef.current) {
         audioRef.current.play().catch((err) => {
           console.error("Audio play error:", err);
@@ -116,20 +112,33 @@ export default function PomodoroTimer() {
       }
 
       if (mode === "pomodoro") {
-        let newOverallCount;
+        let currentOverallCountForNextMode: number; // Declared here
+
+        // Handle authenticated user
         if (isAuthenticated) {
-          // Logged-in user: Update backend (AuthContext will refresh `user.cycles`)
-          incrementUserDailyCycles();
-          // For immediate UI update, predict the next count.
-          // The backend will handle the daily reset.
-          newOverallCount = user?.cycles !== undefined ? user.cycles + 1 : 1;
+          // This is the CRUCIAL check: Only call API if auth state is fully loaded and user data is available
+          if (!authLoading && user && user._id && user.username) {
+            incrementUserDailyCycles();
+            currentOverallCountForNextMode = (user.cycles ?? 0) + 1;
+            console.log(
+              "Calling incrementUserDailyCycles for authenticated user. Expected next count:",
+              currentOverallCountForNextMode
+            );
+          } else {
+            console.warn(
+              "Skipping incrementUserDailyCycles: Auth is still loading or user data is incomplete.",
+              { isAuthenticated, user, authLoading }
+            );
+            // Ensure currentOverallCountForNextMode is assigned even if API call is skipped
+            currentOverallCountForNextMode = user?.cycles ?? 0;
+          }
         } else {
-          // Guest user: Update local state and local storage
-          setOverallPomodoroCount((prev) => {
-            newOverallCount = prev + 1;
-            updateGuestLocalStorage(newOverallCount); // Save to local storage
-            return newOverallCount;
-          });
+          // Guest user logic
+          // FIX: Calculate next count directly and assign to currentOverallCountForNextMode
+          const nextGuestCount = guestOverallPomodoroCount + 1;
+          setGuestOverallPomodoroCount(nextGuestCount); // Asynchronous state update
+          updateGuestLocalStorage(nextGuestCount); // Synchronous local storage update
+          currentOverallCountForNextMode = nextGuestCount; // Ensure it's assigned for immediate use
         }
 
         // Also increment task-specific pomodoros if a task is selected
@@ -137,8 +146,11 @@ export default function PomodoroTimer() {
           incrementPomodoro(currentTaskId);
         }
 
-        // Determine next mode based on the `newOverallCount`
-        if (newOverallCount % 4 === 0) {
+        // Determine next mode based on the current overall count
+        // currentOverallCountForNextMode is now guaranteed to be assigned in all paths
+        const effectiveOverallCount = currentOverallCountForNextMode;
+
+        if (effectiveOverallCount % 4 === 0) {
           setMode("long");
           setTimeLeft(15 * 60);
           showNotification("Long Break", "Time for a well-earned rest!");
@@ -148,8 +160,9 @@ export default function PomodoroTimer() {
           showNotification("Short Break", "Take a short break.");
         }
       } else {
+        // Handle break modes
         setMode("pomodoro");
-        setTimeLeft(25 * 60);
+        setTimeLeft(25 * 60); // Change to 25 * 60 for production
         showNotification("Pomodoro", "Back to focus time!");
       }
     }
@@ -160,15 +173,22 @@ export default function PomodoroTimer() {
     currentTaskId,
     incrementPomodoro,
     isAuthenticated,
-    user?.cycles,
+    user,
+    authLoading,
     incrementUserDailyCycles,
+    setGuestOverallPomodoroCount,
+    guestOverallPomodoroCount, // Added as a dependency because it's now directly read for calculation
     updateGuestLocalStorage,
     showNotification,
-    isSameDay,
-  ]); // Added new dependencies and helper functions
+  ]);
 
   const minutes = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const seconds = String(timeLeft % 60).padStart(2, "0");
+
+  // Determine the count to display based on authentication status
+  const displayOverallCount = isAuthenticated
+    ? user?.cycles ?? 0
+    : guestOverallPomodoroCount;
 
   return (
     <div className="w-full max-w-md space-y-8 text-center mx-auto">
@@ -229,8 +249,9 @@ export default function PomodoroTimer() {
         {mode === "long" && "Take a long break"}
       </p>
 
+      {/* Displaying the overall pomodoro count */}
       <p className="text-sm text-gray-500 text-center mb-4">
-        # {overallPomodoroCount}
+        # {displayOverallCount}
       </p>
 
       <button

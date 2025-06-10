@@ -1,22 +1,10 @@
-// frontend/pages/api/api.ts
-
-// You will need to create this file if it doesn't exist:
-// frontend/utils/AuthError.ts
-// export class AuthError extends Error {
-//   status: number;
-//   constructor(message: string, status: number) {
-//     super(message);
-//     this.name = 'AuthError';
-//     this.status = status;
-//   }
-// }
 import { AuthError } from "../../utils/AuthError"; // Adjust path if AuthError is elsewhere
 
 // Helper to make authenticated API requests
 export async function apiFetch<T>( // Added generic type <T>
   url: string,
   method: string = "GET",
-  data: any = null
+  data: unknown = null // Changed 'any' to 'unknown'
 ): Promise<T> {
   // Added Promise<T> return type
   // --- IMPORTANT CHANGE HERE: Constructing the full URL ---
@@ -44,7 +32,7 @@ export async function apiFetch<T>( // Added generic type <T>
         .catch(() => ({ msg: response.statusText }));
       // Use the custom AuthError class here for better error handling
       throw new AuthError(
-        errorData.msg || "An error occurred",
+        (errorData as { msg?: string }).msg || "An error occurred", // Added type assertion for errorData
         response.status
       );
     }
@@ -67,9 +55,9 @@ export const fetchData = <T>(url: string): Promise<T> => {
   console.log("fetchData preparing to call apiFetch with method: 'GET'");
   return apiFetch<T>(url, "GET");
 };
-export const postData = <T>(url: string, data: any): Promise<T> =>
-  apiFetch<T>(url, "POST", data); // Added generic type <T>
-export const putData = <T>(url: string, data: any): Promise<T> =>
-  apiFetch<T>(url, "PUT", data); // Added generic type <T>
+export const postData = <T>(url: string, data: unknown): Promise<T> =>
+  apiFetch<T>(url, "POST", data); // Changed 'any' to 'unknown'
+export const putData = <T>(url: string, data: unknown): Promise<T> =>
+  apiFetch<T>(url, "PUT", data); // Changed 'any' to 'unknown'
 export const deleteData = <T>(url: string): Promise<T> =>
-  apiFetch<T>(url, "DELETE"); // Added generic type <T>
+  apiFetch<T>(url, "DELETE");

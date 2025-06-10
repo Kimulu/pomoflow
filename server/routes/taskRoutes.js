@@ -1,8 +1,13 @@
-// routes/taskRoutes.js
+// backend/routes/taskRoutes.js
+
 const express = require("express");
 const router = express.Router();
 const taskController = require("../controllers/taskController"); // Make sure this path is correct
-const { protect } = require("../middleware/authMiddleware"); // Ensure this imports '{ protect }'
+
+// CORRECTED IMPORT FOR 'protect' middleware:
+// Since authMiddleware.js now exports the 'protect' function directly,
+// you should import it directly, not destructure it.
+const protect = require("../middleware/authMiddleware"); // <<< CHANGE THIS LINE!
 
 // @route   POST /api/tasks
 // @desc    Add a new task

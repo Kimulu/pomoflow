@@ -5,6 +5,7 @@ interface NavButtonProps {
   icon: JSX.Element;
   label: string;
   onClick?: () => void; // Add optional onClick handler
+  hideLabelOnSmall?: boolean;
 }
 
 // Reusable nav button with icon + label + tooltip

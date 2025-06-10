@@ -8,7 +8,12 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     username: { type: String, required: true, unique: true, trim: true },
-    plan: { type: String, enum: ["free", "trial", "plus"], default: "free" },
+    plan: {
+      type: String,
+      enum: ["free", "trial", "plus"],
+      default: "free",
+      required: true,
+    },
     trialStart: { type: Date, default: null },
     cycles: { type: Number, default: 0 }, // <-- USING YOUR EXISTING 'cycles' FIELD
     // --- NEW FIELD FOR DAILY RESET ---

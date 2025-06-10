@@ -1,4 +1,3 @@
-// controllers/taskController.js
 const Task = require("../models/Task"); // Import the Task model
 const User = require("../models/User"); // Import the User model (if needed for user-specific logic)
 
@@ -6,7 +5,7 @@ const User = require("../models/User"); // Import the User model (if needed for 
 // @route   POST /api/tasks
 // @access  Private
 exports.createTask = async (req, res) => {
-  const { text, pomodoros } = req.body; // Expect text and target pomodoros from frontend
+  const { text, pomodoros, projectId } = req.body; // <-- ADD projectId here
 
   try {
     // Ensure user is authenticated (req.user.id is set by protect middleware)
@@ -20,6 +19,7 @@ exports.createTask = async (req, res) => {
       pomodoros: pomodoros || 1, // Default to 1 if not provided
       pomodorosCompleted: 0, // Always start at 0
       completed: false, // Always start as not completed
+      projectId: projectId || null, // <-- ADD THIS LINE: Save projectId, default to null if not provided
     });
 
     const task = await newTask.save();
@@ -51,12 +51,14 @@ exports.getTasks = async (req, res) => {
   }
 };
 
-// @desc    Update a task (text, target pomodoros, completed status, completed count)
+// @desc    Update a task (text, target pomodoros, completed status, completed count, projectId)
 // @route   PUT /api/tasks/:id
 // @access  Private
 exports.updateTask = async (req, res) => {
   const { id } = req.params; // Task ID from URL
-  const { text, pomodoros, pomodorosCompleted, completed } = req.body; // Fields to update
+  // <-- ADD projectId here:
+  const { text, pomodoros, pomodorosCompleted, completed, projectId } =
+    req.body; // Fields to update
 
   try {
     // Ensure user is authenticated
@@ -83,6 +85,7 @@ exports.updateTask = async (req, res) => {
     if (pomodorosCompleted !== undefined)
       task.pomodorosCompleted = pomodorosCompleted;
     if (completed !== undefined) task.completed = completed;
+    if (projectId !== undefined) task.projectId = projectId; // <-- ADD THIS LINE: Update projectId
 
     // If pomodorosCompleted reaches or exceeds pomodoros, mark as completed (optional logic)
     if (task.pomodorosCompleted >= task.pomodoros && !task.completed) {
@@ -171,13 +174,6 @@ exports.toggleTaskCompleted = async (req, res) => {
     }
 
     task.completed = !task.completed; // Toggle the completed status
-
-    // If explicitly marking as completed, set pomodorosCompleted to target
-    // if (task.completed && task.pomodorosCompleted < task.pomodoros) {
-    //     task.pomodorosCompleted = task.pomodoros;
-    // }
-    // Or if marking incomplete, you might reset pomodorosCompleted or leave it.
-    // For now, just toggle 'completed'.
 
     await task.save();
     res.json(task); // Respond with the updated task

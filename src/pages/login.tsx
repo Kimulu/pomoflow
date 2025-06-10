@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext"; // Use the useAuth hook
+import React from "react"; // Import React to use React.FormEvent
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -10,16 +10,17 @@ export default function Login() {
 
   const { login, isLoading, error } = useAuth(); // Also get isLoading and error from context
 
-  const handleLogin = async (e) => {
+  // Added type for the event object
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       await login(email, password);
       router.push("/");
-    } catch (err: any) {
-      // The alert is now handled by the error state in AuthContext and displayed below
-      // Optionally, you could still use an alert for immediate feedback if desired,
-      // but showing it in the UI is generally better.
-      console.error("Login component: Error during login process", err);
+    } catch (err: unknown) {
+      console.error(
+        "Login component: Error during login process",
+        err instanceof Error ? err.message : String(err) // Safely access error message
+      );
     }
   };
 
@@ -91,7 +92,7 @@ export default function Login() {
         </form>
 
         <div className="text-center text-sm text-base-content">
-          Don't have an account?{" "}
+          Don&apos;t have an account? {/* Escaped apostrophe here */}
           <button
             onClick={() => router.push("/register")}
             className="link link-primary"

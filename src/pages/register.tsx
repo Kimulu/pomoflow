@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext"; // Import useAuth hook
+import React from "react"; // Import React to use React.FormEvent
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -12,7 +12,8 @@ export default function Register() {
   // Get the register function, isLoading, and error from the AuthContext
   const { register, isLoading, error } = useAuth();
 
-  const handleSubmit = async (e) => {
+  // Added type for the event object
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       // Call the register function from AuthContext, passing all fields
@@ -20,11 +21,12 @@ export default function Register() {
 
       // If registration is successful, redirect to the login page
       router.push("/login");
-    } catch (err) {
+    } catch (err: unknown) {
+      // Changed 'err' type to 'unknown'
       // Error handling is now done via the 'error' state from AuthContext
       console.error(
         "Registration component: Error during registration process",
-        err
+        err instanceof Error ? err.message : String(err) // Safely access error message
       );
     }
   };
